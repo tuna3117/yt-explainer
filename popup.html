@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <title>YT Explainer</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+
+  <header>
+    <div class="logo">📘 YT Explainer</div>
+    <div class="subtitle">YouTube Teknik Sözlük v2</div>
+  </header>
+
+  <!-- TAB NAVİGASYON -->
+  <nav class="tab-nav">
+    <button class="tab-btn active" data-tab="settings">⚙️ Ayarlar</button>
+    <button class="tab-btn" data-tab="vocabulary">📚 Kelimelerim</button>
+    <button class="tab-btn" data-tab="telegram">✈️ Telegram</button>
+  </nav>
+
+  <!-- ===================== AYARLAR SEKMESİ ===================== -->
+  <div class="tab-content active" id="tab-settings">
+
+    <!-- MOD TOGGLE -->
+    <section class="section">
+      <div class="section-label">Mod</div>
+      <div class="toggle-group">
+        <button class="toggle-btn active" id="btn-explain" data-mode="explain">🧠 Açıkla (TR)</button>
+        <button class="toggle-btn" id="btn-translate" data-mode="translate">🌍 Çevir (TR)</button>
+      </div>
+      <p class="mode-desc" id="mode-desc">
+        Seçili teknik kavramı Türkçe açıklar. Bağlam ve örnekler içerir.
+      </p>
+    </section>
+
+    <hr class="divider" />
+
+    <!-- API KEY -->
+    <section class="section">
+      <div class="section-label">OpenAI API Anahtarı</div>
+      <div class="input-row">
+        <input type="password" id="api-key-input" placeholder="sk-proj-..." autocomplete="off" spellcheck="false" />
+        <button id="toggle-visibility" title="Göster/Gizle">👁</button>
+      </div>
+      <button id="save-btn" class="save-btn">Kaydet</button>
+      <p id="save-status" class="save-status"></p>
+      <div class="warning-box">
+        ⚠️ <strong>Güvenlik notu:</strong> API anahtarınız cihazınızda yerel olarak saklanır. Uzantı kodunu başkasıyla paylaşmayın.
+      </div>
+    </section>
+
+    <hr class="divider" />
+
+    <!-- KULLANIM -->
+    <section class="section">
+      <div class="section-label">Nasıl Kullanılır</div>
+      <ol class="usage-list">
+        <li>YouTube'da bir video aç</li>
+        <li>Altyazıdan kelime/cümle seç</li>
+        <li><kbd>Ctrl+Shift+E</kbd> bas veya 📘 ikonuna tıkla</li>
+        <li>Açıklama gelir, "💾 Kelimeyi Kaydet" de!</li>
+      </ol>
+    </section>
+
+  </div>
+
+  <!-- ===================== KELİMELERİM SEKMESİ ===================== -->
+  <div class="tab-content" id="tab-vocabulary">
+
+    <section class="section">
+      <div class="vocab-header">
+        <span id="vocab-count" class="section-label">Yükleniyor…</span>
+        <button id="vocab-clear-btn" class="danger-btn" title="Tümünü sil">🗑 Temizle</button>
+      </div>
+
+      <input type="text" id="vocab-search" placeholder="Kelime ara…" class="search-input" />
+
+      <div id="vocab-list" class="vocab-list">
+        <!-- JS tarafından doldurulur -->
+      </div>
+    </section>
+
+  </div>
+
+  <!-- ===================== TELEGRAM SEKMESİ ===================== -->
+  <div class="tab-content" id="tab-telegram">
+
+    <section class="section">
+      <div class="section-label">Telegram Bot Ayarları</div>
+
+      <label class="field-label">Bot Token</label>
+      <div class="input-row">
+        <input type="password" id="tg-token-input" placeholder="123456789:ABC-..." autocomplete="off" />
+        <button id="tg-toggle-vis" title="Göster/Gizle">👁</button>
+      </div>
+
+      <label class="field-label" style="margin-top:10px;">Chat ID (senin Telegram ID'n)</label>
+      <input type="text" id="tg-chatid-input" placeholder="123456789" style="width:100%; margin-bottom:10px;" />
+
+      <button id="tg-save-btn" class="save-btn">Kaydet</button>
+      <p id="tg-save-status" class="save-status"></p>
+
+      <hr class="divider" style="margin: 12px 0;" />
+
+      <div class="section-label">Gönderim Saati</div>
+      <p style="font-size:11px; color:#666; margin-bottom:8px;">Her gün saat 15:00'te 5 kelime gönderilir. Son 3 günde gönderilen kelimeler tekrar edilmez.</p>
+
+      <button id="tg-test-btn" class="test-btn">📤 Şimdi Test Gönder</button>
+      <p id="tg-test-status" class="save-status"></p>
+
+      <hr class="divider" style="margin: 12px 0;" />
+
+      <!-- Kurulum rehberi -->
+      <div class="section-label">Nasıl Kurulur?</div>
+      <ol class="usage-list" id="tg-guide">
+        <li>Telegram'da <strong>@BotFather</strong>'a yaz</li>
+        <li><code>/newbot</code> komutunu gönder</li>
+        <li>Bot adını yaz (örn: "Benim YT Botum")</li>
+        <li>Kullanıcı adı gir (örn: "benim_yt_bot")</li>
+        <li>BotFather sana <strong>Token</strong> verecek → yukaya yapıştır</li>
+        <li>Botuna bir mesaj gönder (herhangi bir şey)</li>
+        <li><strong>@userinfobot</strong>'a yaz → sana Chat ID söyler → yukaya yapıştır</li>
+        <li>"Kaydet" → "Test Gönder" ile dene!</li>
+      </ol>
+    </section>
+
+  </div>
+
+  <footer>
+    <span>Powered by GPT-4o-mini</span>
+  </footer>
+
+  <script src="popup.js"></script>
+</body>
+</html>
