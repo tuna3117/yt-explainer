@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "YT Explainer – Turkish Tech Glossary",
-  "version": "2.0",
-  "description": "YouTube'da metin seç → Türkçe açıklama al. Kelime deposu + Telegram günlük tekrar.",
+  "name": "Web Explainer – Turkish Glossary",
+  "version": "4.0",
+  "description": "Her web sayfasında metin seç → Türkçe açıklama al. YouTube altyazısında tıklanabilir kelimeler.",
 
   "permissions": [
     "storage",
@@ -12,9 +12,7 @@
   ],
 
   "host_permissions": [
-    "https://*.youtube.com/*",
-    "https://api.openai.com/*",
-    "https://api.telegram.org/*"
+    "<all_urls>"
   ],
 
   "background": {
@@ -23,7 +21,7 @@
 
   "content_scripts": [
     {
-      "matches": ["https://*.youtube.com/*"],
+      "matches": ["<all_urls>"],
       "js": ["content.js"],
       "run_at": "document_idle"
     }

@@ -9,29 +9,40 @@
 
   <header>
     <div class="logo">📘 YT Explainer</div>
-    <div class="subtitle">YouTube Teknik Sözlük v2</div>
+    <div class="subtitle">YouTube Teknik Sözlük v3</div>
   </header>
 
-  <!-- TAB NAVİGASYON -->
   <nav class="tab-nav">
     <button class="tab-btn active" data-tab="settings">⚙️ Ayarlar</button>
     <button class="tab-btn" data-tab="vocabulary">📚 Kelimelerim</button>
     <button class="tab-btn" data-tab="telegram">✈️ Telegram</button>
   </nav>
 
-  <!-- ===================== AYARLAR SEKMESİ ===================== -->
+  <!-- ===================== AYARLAR ===================== -->
   <div class="tab-content active" id="tab-settings">
 
-    <!-- MOD TOGGLE -->
+    <!-- ALT YAZI ÇEVİRİSİ -->
     <section class="section">
-      <div class="section-label">Mod</div>
+      <div class="section-label">Altyazı Çevirisi</div>
+      <div class="subtitle-info">
+        YouTube player'da <strong>TR</strong> butonuna bas → video altyazıları GPT ile Türkçeye çevrilir ve altyazının altında gösterilir.
+      </div>
+      <div class="info-row">
+        <span class="info-icon">💡</span>
+        <span class="info-text">Video başına yaklaşık <strong>$0.01</strong> maliyet (1 saat video).</span>
+      </div>
+    </section>
+
+    <hr class="divider" />
+
+    <!-- MOD -->
+    <section class="section">
+      <div class="section-label">Kelime Açıklama Modu</div>
       <div class="toggle-group">
         <button class="toggle-btn active" id="btn-explain" data-mode="explain">🧠 Açıkla (TR)</button>
         <button class="toggle-btn" id="btn-translate" data-mode="translate">🌍 Çevir (TR)</button>
       </div>
-      <p class="mode-desc" id="mode-desc">
-        Seçili teknik kavramı Türkçe açıklar. Bağlam ve örnekler içerir.
-      </p>
+      <p class="mode-desc" id="mode-desc">Seçili teknik kavramı Türkçe açıklar.</p>
     </section>
 
     <hr class="divider" />
@@ -46,7 +57,7 @@
       <button id="save-btn" class="save-btn">Kaydet</button>
       <p id="save-status" class="save-status"></p>
       <div class="warning-box">
-        ⚠️ <strong>Güvenlik notu:</strong> API anahtarınız cihazınızda yerel olarak saklanır. Uzantı kodunu başkasıyla paylaşmayın.
+        ⚠️ <strong>Güvenlik notu:</strong> API anahtarınız cihazınızda yerel olarak saklanır.
       </div>
     </section>
 
@@ -56,36 +67,29 @@
     <section class="section">
       <div class="section-label">Nasıl Kullanılır</div>
       <ol class="usage-list">
-        <li>YouTube'da bir video aç</li>
-        <li>Altyazıdan kelime/cümle seç</li>
-        <li><kbd>Ctrl+Shift+E</kbd> bas veya 📘 ikonuna tıkla</li>
-        <li>Açıklama gelir, "💾 Kelimeyi Kaydet" de!</li>
+        <li>YouTube'da altyazılı bir video aç</li>
+        <li>Player'daki <strong>TR</strong> butonuna bas → çeviri yüklenir</li>
+        <li>Altyazılar otomatik olarak Türkçeyle birlikte gösterilir</li>
+        <li>Bir kelimeyi seç + <kbd>Ctrl+Shift+E</kbd> → detaylı açıklama</li>
       </ol>
     </section>
 
   </div>
 
-  <!-- ===================== KELİMELERİM SEKMESİ ===================== -->
+  <!-- ===================== KELİMELERİM ===================== -->
   <div class="tab-content" id="tab-vocabulary">
-
     <section class="section">
       <div class="vocab-header">
         <span id="vocab-count" class="section-label">Yükleniyor…</span>
-        <button id="vocab-clear-btn" class="danger-btn" title="Tümünü sil">🗑 Temizle</button>
+        <button id="vocab-clear-btn" class="danger-btn">🗑 Temizle</button>
       </div>
-
       <input type="text" id="vocab-search" placeholder="Kelime ara…" class="search-input" />
-
-      <div id="vocab-list" class="vocab-list">
-        <!-- JS tarafından doldurulur -->
-      </div>
+      <div id="vocab-list" class="vocab-list"></div>
     </section>
-
   </div>
 
-  <!-- ===================== TELEGRAM SEKMESİ ===================== -->
+  <!-- ===================== TELEGRAM ===================== -->
   <div class="tab-content" id="tab-telegram">
-
     <section class="section">
       <div class="section-label">Telegram Bot Ayarları</div>
 
@@ -95,36 +99,30 @@
         <button id="tg-toggle-vis" title="Göster/Gizle">👁</button>
       </div>
 
-      <label class="field-label" style="margin-top:10px;">Chat ID (senin Telegram ID'n)</label>
-      <input type="text" id="tg-chatid-input" placeholder="123456789" style="width:100%; margin-bottom:10px;" />
+      <label class="field-label" style="margin-top:10px;">Chat ID</label>
+      <input type="text" id="tg-chatid-input" placeholder="123456789" style="width:100%;margin-bottom:10px;" />
 
       <button id="tg-save-btn" class="save-btn">Kaydet</button>
       <p id="tg-save-status" class="save-status"></p>
 
-      <hr class="divider" style="margin: 12px 0;" />
+      <hr class="divider" style="margin:12px 0;" />
 
-      <div class="section-label">Gönderim Saati</div>
-      <p style="font-size:11px; color:#666; margin-bottom:8px;">Her gün saat 15:00'te 5 kelime gönderilir. Son 3 günde gönderilen kelimeler tekrar edilmez.</p>
-
+      <div class="section-label">Gönderim</div>
+      <p style="font-size:11px;color:#666;margin-bottom:8px;">Her gün 15:00'te 5 kelime. Son 3 günde gönderilenler tekrar edilmez.</p>
       <button id="tg-test-btn" class="test-btn">📤 Şimdi Test Gönder</button>
       <p id="tg-test-status" class="save-status"></p>
 
-      <hr class="divider" style="margin: 12px 0;" />
+      <hr class="divider" style="margin:12px 0;" />
 
-      <!-- Kurulum rehberi -->
       <div class="section-label">Nasıl Kurulur?</div>
-      <ol class="usage-list" id="tg-guide">
+      <ol class="usage-list">
         <li>Telegram'da <strong>@BotFather</strong>'a yaz</li>
-        <li><code>/newbot</code> komutunu gönder</li>
-        <li>Bot adını yaz (örn: "Benim YT Botum")</li>
-        <li>Kullanıcı adı gir (örn: "benim_yt_bot")</li>
-        <li>BotFather sana <strong>Token</strong> verecek → yukaya yapıştır</li>
-        <li>Botuna bir mesaj gönder (herhangi bir şey)</li>
-        <li><strong>@userinfobot</strong>'a yaz → sana Chat ID söyler → yukaya yapıştır</li>
-        <li>"Kaydet" → "Test Gönder" ile dene!</li>
+        <li><code>/newbot</code> → token al → yukarıya yapıştır</li>
+        <li>Botuna bir mesaj gönder</li>
+        <li><strong>@userinfobot</strong>'a yaz → Chat ID al</li>
+        <li>Kaydet → Test Gönder!</li>
       </ol>
     </section>
-
   </div>
 
   <footer>
