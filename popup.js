@@ -1,6 +1,5 @@
 // ============================================================
-// popup.js — Popup Logic v2
-// Handles: tabs, mode toggle, API key, vocabulary list, Telegram settings
+// popup.js — v3
 // ============================================================
 
 const modeDescriptions = {
@@ -8,74 +7,58 @@ const modeDescriptions = {
   translate: "Metni doğal Türkçeye çevirir, teknik terimleri not eder."
 };
 
-// ============================================================
-// INIT
-// ============================================================
 document.addEventListener("DOMContentLoaded", () => {
-
-  // Load all saved settings
   chrome.storage.local.get([
     "openai_api_key", "mode",
     "telegram_bot_token", "telegram_chat_id",
-    "vocabulary"
+    "enabled"
   ], (stored) => {
-    if (stored.openai_api_key) {
-      document.getElementById("api-key-input").value = stored.openai_api_key;
-    }
-    if (stored.telegram_bot_token) {
-      document.getElementById("tg-token-input").value = stored.telegram_bot_token;
-    }
-    if (stored.telegram_chat_id) {
-      document.getElementById("tg-chatid-input").value = stored.telegram_chat_id;
-    }
-
+    if (stored.openai_api_key) document.getElementById("api-key-input").value = stored.openai_api_key;
+    if (stored.telegram_bot_token) document.getElementById("tg-token-input").value = stored.telegram_bot_token;
+    if (stored.telegram_chat_id) document.getElementById("tg-chatid-input").value = stored.telegram_chat_id;
     setActiveMode(stored.mode || "explain");
+    updateEnabledBtn(stored.enabled !== false);
   });
 
-  // ---- TAB NAVIGATION ----
+  // Tab navigation
   document.querySelectorAll(".tab-btn").forEach(btn => {
     btn.addEventListener("click", () => {
       document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
       document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
-
       btn.classList.add("active");
       document.getElementById(`tab-${btn.dataset.tab}`).classList.add("active");
-
-      // Load vocabulary when switching to that tab
       if (btn.dataset.tab === "vocabulary") loadVocabulary();
     });
   });
 
-  // ---- SETTINGS TAB ----
-  document.getElementById("btn-explain").addEventListener("click", () => {
-    setActiveMode("explain"); chrome.storage.local.set({ mode: "explain" });
-  });
-  document.getElementById("btn-translate").addEventListener("click", () => {
-    setActiveMode("translate"); chrome.storage.local.set({ mode: "translate" });
-  });
-
+  // Settings
+  document.getElementById("btn-explain").addEventListener("click", () => { setActiveMode("explain"); chrome.storage.local.set({ mode: "explain" }); });
+  document.getElementById("btn-translate").addEventListener("click", () => { setActiveMode("translate"); chrome.storage.local.set({ mode: "translate" }); });
   document.getElementById("save-btn").addEventListener("click", saveApiKey);
-  document.getElementById("api-key-input").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") saveApiKey();
-  });
+  document.getElementById("api-key-input").addEventListener("keydown", e => { if (e.key === "Enter") saveApiKey(); });
   document.getElementById("toggle-visibility").addEventListener("click", () => {
     const input = document.getElementById("api-key-input");
     input.type = input.type === "password" ? "text" : "password";
   });
 
-  // ---- VOCABULARY TAB ----
-  document.getElementById("vocab-search").addEventListener("input", (e) => {
-    loadVocabulary(e.target.value);
-  });
+  // Vocabulary
+  document.getElementById("vocab-search").addEventListener("input", e => loadVocabulary(e.target.value));
   document.getElementById("vocab-clear-btn").addEventListener("click", clearAllVocabulary);
 
-  // ---- TELEGRAM TAB ----
+  // Telegram
   document.getElementById("tg-toggle-vis").addEventListener("click", () => {
     const input = document.getElementById("tg-token-input");
     input.type = input.type === "password" ? "text" : "password";
   });
   document.getElementById("tg-save-btn").addEventListener("click", saveTelegramSettings);
   document.getElementById("tg-test-btn").addEventListener("click", testTelegram);
+
+  // Enable/Disable toggle
+  document.getElementById("toggle-enabled").addEventListener("click", () => {
+    const btn = document.getElementById("toggle-enabled");
+    const newState = btn.classList.contains("disabled"); // disabled → enable, active → disable
+    chrome.storage.local.set({ enabled: newState }, () => updateEnabledBtn(newState));
+  });
 });
 
 // ============================================================
@@ -91,13 +74,8 @@ function saveApiKey() {
   const key = document.getElementById("api-key-input").value.trim();
   if (!key) return showStatus("save-status", "Lütfen bir API anahtarı girin.", "error");
   if (!key.startsWith("sk-")) return showStatus("save-status", "Geçersiz anahtar. 'sk-' ile başlamalı.", "error");
-
   chrome.storage.local.set({ openai_api_key: key }, () => {
-    if (chrome.runtime.lastError) {
-      showStatus("save-status", "Kaydetme hatası!", "error");
-    } else {
-      showStatus("save-status", "✓ Başarıyla kaydedildi!", "");
-    }
+    showStatus("save-status", chrome.runtime.lastError ? "Kaydetme hatası!" : "✓ Başarıyla kaydedildi!", chrome.runtime.lastError ? "error" : "");
   });
 }
 
@@ -111,49 +89,36 @@ function loadVocabulary(filterText = "") {
       ? vocab.filter(e => e.word.toLowerCase().includes(filterText.toLowerCase()))
       : vocab;
 
-    const countEl = document.getElementById("vocab-count");
-    countEl.textContent = `${vocab.length} kayıtlı kelime`;
+    document.getElementById("vocab-count").textContent = `${vocab.length} kayıtlı kelime`;
 
     const listEl = document.getElementById("vocab-list");
     listEl.innerHTML = "";
 
     if (filtered.length === 0) {
-      listEl.innerHTML = `<div class="vocab-empty">${
-        filterText ? "Eşleşen kelime bulunamadı." : "Henüz kayıtlı kelime yok.<br>Bir kelimeyi açıklayıp 💾 butonuna bas!"
-      }</div>`;
+      listEl.innerHTML = `<div class="vocab-empty">${filterText ? "Eşleşen kelime yok." : "Henüz kelime yok.<br>Bir kelimeyi açıkla ve 💾 butonuna bas!"}</div>`;
       return;
     }
 
     filtered.forEach(entry => {
       const item = document.createElement("div");
       item.className = "vocab-item";
-
       const savedDate = new Date(entry.savedAt).toLocaleDateString("tr-TR");
-      const reviewInfo = entry.lastReviewed
-        ? `• ${entry.reviewCount}x tekrar edildi`
-        : "• Henüz gönderilmedi";
-
-      // Get first non-empty line of explanation as preview
-      const previewLine = entry.explanation
-        .split("\n")
-        .find(line => line.trim() && !line.startsWith("**")) || "";
+      const reviewInfo = entry.lastReviewed ? `• ${entry.reviewCount}x tekrar` : "• Henüz gönderilmedi";
+      const previewLine = entry.explanation.split("\n").find(l => l.trim() && !l.startsWith("**")) || "";
 
       item.innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
           <div class="vocab-item-word">${escHtml(entry.word)}</div>
-          <button class="vocab-item-delete" data-id="${entry.id}" title="Sil">×</button>
+          <button class="vocab-item-delete" data-id="${entry.id}">×</button>
         </div>
         <div class="vocab-item-meta">${savedDate} ${reviewInfo}</div>
         <div class="vocab-item-preview">${escHtml(previewLine.replace(/\*\*/g, ""))}</div>
       `;
 
-      // Click to expand full explanation
       item.addEventListener("click", (e) => {
         if (e.target.classList.contains("vocab-item-delete")) return;
         showWordDetail(entry);
       });
-
-      // Delete button
       item.querySelector(".vocab-item-delete").addEventListener("click", (e) => {
         e.stopPropagation();
         deleteWord(entry.id);
@@ -165,56 +130,38 @@ function loadVocabulary(filterText = "") {
 }
 
 function showWordDetail(entry) {
-  // Simple inline expand: replace preview with full explanation
-  const existingDetail = document.getElementById("vocab-detail-modal");
-  if (existingDetail) existingDetail.remove();
+  document.getElementById("vocab-detail-modal")?.remove();
 
   const modal = document.createElement("div");
   modal.id = "vocab-detail-modal";
-  modal.style.cssText = `
-    position: fixed; inset: 0; background: rgba(0,0,0,0.8);
-    z-index: 9999; display: flex; align-items: center; justify-content: center;
-    padding: 16px;
-  `;
+  modal.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;";
 
   const box = document.createElement("div");
-  box.style.cssText = `
-    background: #0f0f11; border: 1px solid rgba(167,139,250,0.3);
-    border-radius: 12px; padding: 16px; max-height: 400px; overflow-y: auto;
-    width: 100%;
-  `;
-
+  box.style.cssText = "background:#0f0f11;border:1px solid rgba(167,139,250,0.3);border-radius:12px;padding:16px;max-height:400px;overflow-y:auto;width:100%;";
   box.innerHTML = `
-    <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-      <strong style="color:#c4b5fd; font-size:15px;">${escHtml(entry.word)}</strong>
+    <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
+      <strong style="color:#c4b5fd;font-size:15px;">${escHtml(entry.word)}</strong>
       <button id="close-detail" style="background:none;border:none;color:#888;cursor:pointer;font-size:18px;">×</button>
     </div>
-    <div style="font-size:12px; color:#888; margin-bottom:10px;">
-      Kaydedildi: ${new Date(entry.savedAt).toLocaleString("tr-TR")} •
-      ${entry.reviewCount || 0}x Telegram'da gösterildi
+    <div style="font-size:12px;color:#888;margin-bottom:10px;">
+      ${new Date(entry.savedAt).toLocaleString("tr-TR")} • ${entry.reviewCount || 0}x gönderildi
     </div>
-    <div style="font-size:12px; color:#ccc; line-height:1.6;">
-      ${renderMarkdownSimple(entry.explanation)}
-    </div>
-    ${entry.context ? `
-    <div style="margin-top:10px; padding:6px 8px; background:rgba(255,255,255,0.04); border-radius:6px; font-size:11px; color:#555; border-left:2px solid #a78bfa;">
-      Bağlam: "${escHtml(entry.context)}"
-    </div>` : ""}
+    <div style="font-size:12px;color:#ccc;line-height:1.6;">${renderMarkdownSimple(entry.explanation)}</div>
+    ${entry.context ? `<div style="margin-top:10px;padding:6px 8px;background:rgba(255,255,255,0.04);border-radius:6px;font-size:11px;color:#555;border-left:2px solid #a78bfa;">Bağlam: "${escHtml(entry.context)}"</div>` : ""}
   `;
 
   modal.appendChild(box);
   document.body.appendChild(modal);
-
   document.getElementById("close-detail").addEventListener("click", () => modal.remove());
-  modal.addEventListener("click", (e) => { if (e.target === modal) modal.remove(); });
+  modal.addEventListener("click", e => { if (e.target === modal) modal.remove(); });
 }
 
 function deleteWord(id) {
   chrome.storage.local.get(["vocabulary"], (stored) => {
     const vocab = (stored.vocabulary || []).filter(e => e.id !== id);
-    chrome.storage.local.set({ vocabulary: vocab }, () => loadVocabulary(
-      document.getElementById("vocab-search").value
-    ));
+    chrome.storage.local.set({ vocabulary: vocab }, () =>
+      loadVocabulary(document.getElementById("vocab-search").value)
+    );
   });
 }
 
@@ -229,61 +176,38 @@ function clearAllVocabulary() {
 function saveTelegramSettings() {
   const token = document.getElementById("tg-token-input").value.trim();
   const chatId = document.getElementById("tg-chatid-input").value.trim();
-
   if (!token) return showStatus("tg-save-status", "Bot token gerekli!", "error");
   if (!chatId) return showStatus("tg-save-status", "Chat ID gerekli!", "error");
   if (!chatId.match(/^-?\d+$/)) return showStatus("tg-save-status", "Chat ID sadece rakam olmalı.", "error");
-
-  chrome.storage.local.set({
-    telegram_bot_token: token,
-    telegram_chat_id: chatId
-  }, () => {
+  chrome.storage.local.set({ telegram_bot_token: token, telegram_chat_id: chatId }, () => {
     showStatus("tg-save-status", "✓ Telegram ayarları kaydedildi!", "");
   });
 }
 
 function testTelegram() {
   const btn = document.getElementById("tg-test-btn");
-  btn.textContent = "⏳ Gönderiliyor…";
-  btn.disabled = true;
-
-  // Önce ayarları kaydet, sonra mesaj gönder
   const token = document.getElementById("tg-token-input").value.trim();
   const chatId = document.getElementById("tg-chatid-input").value.trim();
 
   if (!token || !chatId) {
-    btn.disabled = false;
-    btn.textContent = "📤 Şimdi Test Gönder";
     showStatus("tg-test-status", "Önce token ve Chat ID gir!", "error");
     return;
   }
 
+  btn.textContent = "⏳ Gönderiliyor…"; btn.disabled = true;
+
   chrome.runtime.sendMessage({ type: "TEST_TELEGRAM" }, (response) => {
-    // Port kapanma hatasını sessizce yut — zararsız
+    btn.disabled = false; btn.textContent = "📤 Şimdi Test Gönder";
     if (chrome.runtime.lastError) {
-      const errMsg = chrome.runtime.lastError.message || "";
-      // "message port closed" hatası zararsız, sadece popup hızlı kapandı demek
-      if (!errMsg.includes("message port closed")) {
-        console.warn("[YT Explainer] Telegram test error:", errMsg);
+      const err = chrome.runtime.lastError.message || "";
+      if (!err.includes("message port closed")) {
+        showStatus("tg-test-status", "⏳ Gönderim devam ediyor, Telegram'ı kontrol et.", "");
       }
-    }
-
-    btn.disabled = false;
-    btn.textContent = "📤 Şimdi Test Gönder";
-
-    if (!response) {
-      // Cevap gelmedi ama bu genellikle mesaj yolda demek — hata değil
-      showStatus("tg-test-status", "⏳ Gönderim devam ediyor, Telegram'ı kontrol et.", "");
       return;
     }
-
+    if (!response) { showStatus("tg-test-status", "⏳ Gönderim devam ediyor…", ""); return; }
     if (response.ok) {
-      const count = response.sent;
-      if (count === 0) {
-        showStatus("tg-test-status", "✓ Bağlantı tamam! (Kelime deposu henüz boş)", "");
-      } else {
-        showStatus("tg-test-status", `✓ ${count} kelime Telegram'a gönderildi!`, "");
-      }
+      showStatus("tg-test-status", response.sent === 0 ? "✓ Bağlantı tamam! (Kelime deposu boş)" : `✓ ${response.sent} kelime gönderildi!`, "");
     } else {
       showStatus("tg-test-status", "Hata: " + (response.error || "Bilinmeyen"), "error");
     }
@@ -293,6 +217,13 @@ function testTelegram() {
 // ============================================================
 // HELPERS
 // ============================================================
+function updateEnabledBtn(isEnabled) {
+  const btn = document.getElementById("toggle-enabled");
+  if (!btn) return;
+  btn.textContent = isEnabled ? "✓ Aktif" : "✗ Devre Dışı";
+  btn.classList.toggle("disabled", !isEnabled);
+}
+
 function showStatus(elId, msg, type) {
   const el = document.getElementById(elId);
   if (!el) return;
