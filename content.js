@@ -445,21 +445,20 @@ function showTooltip(word, context, content, state, errorMsg) {
     cardBodyColor: "#334155"
   };
 
-  const rect = (typeof lastRange?.getBoundingClientRect === "function")
+  const vRect = (typeof lastRange?.getBoundingClientRect === "function")
     ? lastRange.getBoundingClientRect()
     : { bottom: 120, left: 120, top: 100, width: 0 };
 
   const W = 390;
-  const useAbove = (window.innerHeight - rect.bottom) < 300;
-  let left = rect.left + window.scrollX;
-  if (left + W > window.innerWidth + window.scrollX - 16) left = window.innerWidth + window.scrollX - W - 16;
-  if (left < window.scrollX + 8) left = window.scrollX + 8;
-  const top = useAbove ? rect.top + window.scrollY - 260 : rect.bottom + window.scrollY + 10;
+  let top  = vRect.bottom + 10;
+  let left = vRect.left;
+  if (left + W > window.innerWidth - 8) left = window.innerWidth - W - 8;
+  if (left < 8) left = 8;
 
   tooltipEl = document.createElement("div");
   tooltipEl.id = "ytexp-tooltip";
   tooltipEl.style.cssText = `
-    position:absolute; top:${top}px; left:${left}px; width:${W}px;
+    position:fixed; top:${top}px; left:${left}px; width:${W}px;
     z-index:2147483647; font-family:'Segoe UI',system-ui,sans-serif;
     font-size:13px; line-height:1.55;
     background:${T.bg}; color:${T.text};
@@ -518,6 +517,14 @@ function showTooltip(word, context, content, state, errorMsg) {
   }
 
   document.body.appendChild(tooltipEl);
+
+  // Viewport'a sığdır: gerçek yüksekliği okuyup gerekirse yukarı aç
+  const tipH = tooltipEl.offsetHeight;
+  if (top + tipH > window.innerHeight - 8) {
+    const topAbove = vRect.top - 10 - tipH;
+    tooltipEl.style.top = `${Math.max(8, topAbove)}px`;
+  }
+
   document.getElementById("ytexp-close")?.addEventListener("click", dismissTooltip);
 
   if (state === "success") {
