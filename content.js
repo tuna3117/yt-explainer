@@ -11,6 +11,7 @@ let selectionIconEl  = null;
 let lastRange        = null;
 let lastSelectedText = "";
 let lastContext      = "";
+let activeReqId      = 0;
 
 // Tema state — popup'tan storage üzerinden senkronize edilir
 let appTheme = "light";
@@ -91,7 +92,7 @@ function showSelectionIcon() {
     font-size:16px; user-select:none; transition:transform 0.15s;
     animation:ytexp-pop 0.2s cubic-bezier(0.34,1.56,0.64,1);
   `;
-  selectionIconEl.textContent = "📘";
+  selectionIconEl.innerHTML = `<img src="${chrome.runtime.getURL('icons/icon48.png')}" style="width:20px;height:20px;object-fit:contain;filter:brightness(0) invert(1);">`;
   selectionIconEl.title = "Türkçe açıkla (Ctrl+Shift+E)";
   selectionIconEl.addEventListener("mouseenter", () => selectionIconEl.style.transform = "scale(1.15)");
   selectionIconEl.addEventListener("mouseleave", () => selectionIconEl.style.transform = "scale(1)");
@@ -124,11 +125,13 @@ function triggerExplainWithData(word, context) {
   if (!chrome.runtime?.id) {
     showTooltip(word, context, null, "error", "Uzantı bağlantısı kesildi. F5 ile yenileyin."); return;
   }
+  const reqId = ++activeReqId;
   showTooltip(word, context, null, "loading");
   chrome.storage.local.get(["mode"], (s) => {
     chrome.runtime.sendMessage(
       { type: "EXPLAIN_TEXT", payload: { selectedText: word, context, mode: s.mode || "explain" } },
       (res) => {
+        if (reqId !== activeReqId) return; // kullanıcı kapattı, gösterme
         if (chrome.runtime.lastError) {
           showTooltip(word, context, null, "error", "Bağlantı hatası. F5 ile yenileyin."); return;
         }
@@ -509,12 +512,13 @@ function showTooltip(word, context, content, state, errorMsg) {
     ftr.innerHTML = `
       <button id="ytexp-save" style="flex:1;background:#2563eb;border:none;color:#fff;cursor:pointer;border-radius:8px;font-size:12px;font-weight:600;padding:9px 10px;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:5px;">🔖 Kelimeyi Kaydet</button>
       <button id="ytexp-copy" style="flex:1;background:${T.copyBtn};border:1.5px solid ${T.copyBtnBorder};color:${T.copyBtnColor};cursor:pointer;border-radius:8px;font-size:12px;font-weight:500;padding:9px 10px;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:5px;">📋 Kopyala</button>
+      <button id="ytexp-panel" style="flex:1;background:${T.copyBtn};border:1.5px solid ${T.copyBtnBorder};color:${T.chipColor};cursor:pointer;border-radius:8px;font-size:12px;font-weight:500;padding:9px 10px;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:5px;">📌 Panelde Aç</button>
     `;
     tooltipEl.appendChild(ftr);
   }
 
   document.body.appendChild(tooltipEl);
-  document.getElementById("ytexp-close")?.addEventListener("click", removeTooltip);
+  document.getElementById("ytexp-close")?.addEventListener("click", dismissTooltip);
 
   if (state === "success") {
     document.getElementById("ytexp-copy")?.addEventListener("click", () => {
@@ -522,6 +526,13 @@ function showTooltip(word, context, content, state, errorMsg) {
         const b = document.getElementById("ytexp-copy");
         if (b) { b.textContent = "✓ Kopyalandı!"; b.style.color = "#16a34a"; }
       });
+    });
+    document.getElementById("ytexp-panel")?.addEventListener("click", () => {
+      chrome.runtime.sendMessage({
+        type: "OPEN_SIDE_PANEL",
+        payload: { word, explanation: content, context: context || "" }
+      });
+      removeTooltip();
     });
     document.getElementById("ytexp-save")?.addEventListener("click", () => {
       const b = document.getElementById("ytexp-save");
@@ -537,11 +548,12 @@ function showTooltip(word, context, content, state, errorMsg) {
   }
 }
 
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") { removeTooltip(); removeSelectionIcon(); }});
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") { dismissTooltip(); removeSelectionIcon(); }});
 document.addEventListener("mousedown", (e) => {
-  if (tooltipEl && !tooltipEl.contains(e.target) && !ourOverlayEl?.contains(e.target)) removeTooltip();
+  if (tooltipEl && !tooltipEl.contains(e.target) && !ourOverlayEl?.contains(e.target)) dismissTooltip();
 });
 function removeTooltip() { tooltipEl?.remove(); tooltipEl = null; }
+function dismissTooltip() { activeReqId++; removeTooltip(); }
 
 // ============================================================
 // STYLES
@@ -596,12 +608,12 @@ function injectStyles() {
       transition: background 0.1s;
     }
     .ytexp-word:hover {
-      background: rgba(167,139,250,0.38);
-      outline: 1px solid rgba(167,139,250,0.65);
+      background: rgba(59,130,246,0.25);
+      outline: 1px solid rgba(59,130,246,0.6);
     }
 
     #ytexp-caption-overlay ::selection {
-      background: rgba(167,139,250,0.45);
+      background: rgba(59,130,246,0.4);
       color: #fff;
     }
   `;

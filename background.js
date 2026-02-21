@@ -68,6 +68,44 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       .catch((err) => sendResponse({ ok: false, error: err.message }));
     return true;
   }
+
+  // ---- Side Panel: kelimeyi panele gönder + aç ----
+  if (message.type === "OPEN_SIDE_PANEL") {
+    const { word, explanation, context } = message.payload;
+    chrome.storage.local.set({ panel_word: { word, explanation, context, ts: Date.now() } });
+    chrome.sidePanel.open({ tabId: sender.tab.id });
+    sendResponse({ ok: true });
+    return true;
+  }
+
+  // ---- Side Panel: follow-up chat ----
+  if (message.type === "CHAT_MESSAGE") {
+    (async () => {
+      try {
+        const apiKey = await getApiKey();
+        const res = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+          body: JSON.stringify({
+            model: "gpt-4o-mini",
+            max_tokens: 600,
+            temperature: 0.5,
+            messages: message.payload.messages
+          })
+        });
+        if (!res.ok) {
+          const e = await res.json().catch(() => ({}));
+          sendResponse({ ok: false, error: e?.error?.message || `HTTP ${res.status}` });
+          return;
+        }
+        const data = await res.json();
+        sendResponse({ ok: true, data: data.choices[0].message.content.trim() });
+      } catch (err) {
+        sendResponse({ ok: false, error: err.message });
+      }
+    })();
+    return true;
+  }
 });
 
 // ============================================================
