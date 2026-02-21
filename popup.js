@@ -11,13 +11,22 @@ document.addEventListener("DOMContentLoaded", () => {
   chrome.storage.local.get([
     "openai_api_key", "mode",
     "telegram_bot_token", "telegram_chat_id",
-    "enabled"
+    "enabled", "theme"
   ], (stored) => {
     if (stored.openai_api_key) document.getElementById("api-key-input").value = stored.openai_api_key;
     if (stored.telegram_bot_token) document.getElementById("tg-token-input").value = stored.telegram_bot_token;
     if (stored.telegram_chat_id) document.getElementById("tg-chatid-input").value = stored.telegram_chat_id;
     setActiveMode(stored.mode || "explain");
     updateEnabledBtn(stored.enabled !== false);
+    applyTheme(stored.theme || "light");
+  });
+
+  // Tema toggle
+  document.getElementById("theme-toggle").addEventListener("click", () => {
+    const isDark = document.body.getAttribute("data-theme") === "dark";
+    const next = isDark ? "light" : "dark";
+    applyTheme(next);
+    chrome.storage.local.set({ theme: next });
   });
 
   // Tab navigation
@@ -44,6 +53,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Vocabulary
   document.getElementById("vocab-search").addEventListener("input", e => loadVocabulary(e.target.value));
   document.getElementById("vocab-clear-btn").addEventListener("click", clearAllVocabulary);
+  document.getElementById("vocab-export-btn").addEventListener("click", exportVocabulary);
 
   // Telegram
   document.getElementById("tg-toggle-vis").addEventListener("click", () => {
@@ -56,7 +66,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Enable/Disable toggle
   document.getElementById("toggle-enabled").addEventListener("click", () => {
     const btn = document.getElementById("toggle-enabled");
-    const newState = btn.classList.contains("disabled"); // disabled → enable, active → disable
+    const newState = btn.classList.contains("disabled");
     chrome.storage.local.set({ enabled: newState }, () => updateEnabledBtn(newState));
   });
 });
@@ -89,7 +99,16 @@ function loadVocabulary(filterText = "") {
       ? vocab.filter(e => e.word.toLowerCase().includes(filterText.toLowerCase()))
       : vocab;
 
-    document.getElementById("vocab-count").textContent = `${vocab.length} kayıtlı kelime`;
+    // Stats
+    const now = new Date();
+    const todayStr = now.toDateString();
+    const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
+    const statTotal = document.getElementById("stat-total");
+    const statWeek  = document.getElementById("stat-week");
+    const statToday = document.getElementById("stat-today");
+    if (statTotal) statTotal.textContent = vocab.length;
+    if (statWeek)  statWeek.textContent  = vocab.filter(e => new Date(e.savedAt) >= weekAgo).length;
+    if (statToday) statToday.textContent = vocab.filter(e => new Date(e.savedAt).toDateString() === todayStr).length;
 
     const listEl = document.getElementById("vocab-list");
     listEl.innerHTML = "";
@@ -103,16 +122,19 @@ function loadVocabulary(filterText = "") {
       const item = document.createElement("div");
       item.className = "vocab-item";
       const savedDate = new Date(entry.savedAt).toLocaleDateString("tr-TR");
-      const reviewInfo = entry.lastReviewed ? `• ${entry.reviewCount}x tekrar` : "• Henüz gönderilmedi";
+      const firstLetter = (entry.word || "?").charAt(0).toUpperCase();
       const previewLine = entry.explanation.split("\n").find(l => l.trim() && !l.startsWith("**")) || "";
 
       item.innerHTML = `
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div class="vocab-avatar">${escHtml(firstLetter)}</div>
+        <div class="vocab-item-body">
           <div class="vocab-item-word">${escHtml(entry.word)}</div>
+          <div class="vocab-item-preview">${escHtml(previewLine.replace(/\*\*/g, ""))}</div>
+        </div>
+        <div class="vocab-item-right">
+          <span class="vocab-item-meta">${savedDate}</span>
           <button class="vocab-item-delete" data-id="${entry.id}">×</button>
         </div>
-        <div class="vocab-item-meta">${savedDate} ${reviewInfo}</div>
-        <div class="vocab-item-preview">${escHtml(previewLine.replace(/\*\*/g, ""))}</div>
       `;
 
       item.addEventListener("click", (e) => {
@@ -134,20 +156,20 @@ function showWordDetail(entry) {
 
   const modal = document.createElement("div");
   modal.id = "vocab-detail-modal";
-  modal.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;";
+  modal.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;";
 
   const box = document.createElement("div");
-  box.style.cssText = "background:#0f0f11;border:1px solid rgba(167,139,250,0.3);border-radius:12px;padding:16px;max-height:400px;overflow-y:auto;width:100%;";
+  box.style.cssText = "background:#ffffff;border:1px solid #e2e8f0;border-radius:14px;padding:16px;max-height:400px;overflow-y:auto;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.15);";
   box.innerHTML = `
-    <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
-      <strong style="color:#c4b5fd;font-size:15px;">${escHtml(entry.word)}</strong>
-      <button id="close-detail" style="background:none;border:none;color:#888;cursor:pointer;font-size:18px;">×</button>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <strong style="color:#1e293b;font-size:15px;">${escHtml(entry.word)}</strong>
+      <button id="close-detail" style="background:#f1f5f9;border:none;color:#64748b;cursor:pointer;font-size:18px;width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;">×</button>
     </div>
-    <div style="font-size:12px;color:#888;margin-bottom:10px;">
+    <div style="font-size:11px;color:#94a3b8;margin-bottom:10px;">
       ${new Date(entry.savedAt).toLocaleString("tr-TR")} • ${entry.reviewCount || 0}x gönderildi
     </div>
-    <div style="font-size:12px;color:#ccc;line-height:1.6;">${renderMarkdownSimple(entry.explanation)}</div>
-    ${entry.context ? `<div style="margin-top:10px;padding:6px 8px;background:rgba(255,255,255,0.04);border-radius:6px;font-size:11px;color:#555;border-left:2px solid #a78bfa;">Bağlam: "${escHtml(entry.context)}"</div>` : ""}
+    <div style="font-size:12px;color:#475569;line-height:1.6;">${renderMarkdownSimple(entry.explanation)}</div>
+    ${entry.context ? `<div style="margin-top:10px;padding:6px 8px;background:#f8fafc;border-radius:6px;font-size:11px;color:#64748b;border-left:2px solid #3b82f6;">Bağlam: "${escHtml(entry.context)}"</div>` : ""}
   `;
 
   modal.appendChild(box);
@@ -168,6 +190,17 @@ function deleteWord(id) {
 function clearAllVocabulary() {
   if (!confirm("Tüm kelimeler silinecek. Emin misin?")) return;
   chrome.storage.local.set({ vocabulary: [] }, () => loadVocabulary());
+}
+
+function exportVocabulary() {
+  chrome.storage.local.get(["vocabulary"], (stored) => {
+    const vocab = stored.vocabulary || [];
+    if (!vocab.length) return showStatus("vocab-export-status", "Dışa aktarılacak kelime yok.", "error");
+    const text = vocab.map(e => `${e.word}\n${e.explanation}`).join("\n\n---\n\n");
+    navigator.clipboard.writeText(text)
+      .then(() => showStatus("vocab-export-status", `✓ ${vocab.length} kelime panoya kopyalandı!`, ""))
+      .catch(() => showStatus("vocab-export-status", "Kopyalama başarısız.", "error"));
+  });
 }
 
 // ============================================================
@@ -217,10 +250,16 @@ function testTelegram() {
 // ============================================================
 // HELPERS
 // ============================================================
+function applyTheme(theme) {
+  document.body.setAttribute("data-theme", theme === "dark" ? "dark" : "");
+  const btn = document.getElementById("theme-toggle");
+  if (btn) btn.textContent = theme === "dark" ? "☀️" : "🌙";
+}
+
 function updateEnabledBtn(isEnabled) {
   const btn = document.getElementById("toggle-enabled");
   if (!btn) return;
-  btn.textContent = isEnabled ? "✓ Aktif" : "✗ Devre Dışı";
+  btn.innerHTML = `<span class="dot"></span>${isEnabled ? " Aktif" : " Devre Dışı"}`;
   btn.classList.toggle("disabled", !isEnabled);
 }
 
@@ -240,7 +279,7 @@ function escHtml(str) {
 function renderMarkdownSimple(text) {
   if (!text) return "";
   return text
-    .replace(/\*\*(.*?)\*\*/g, "<strong style='color:#a78bfa'>$1</strong>")
+    .replace(/\*\*(.*?)\*\*/g, "<strong style='color:#2563eb'>$1</strong>")
     .replace(/^[•\-]\s+(.+)$/gm, "<li>$1</li>")
     .replace(/(<li>.*<\/li>\n?)+/gs, m => `<ul style="padding-left:1.2em;margin:4px 0">${m}</ul>`)
     .replace(/\n{2,}/g, "<br><br>")

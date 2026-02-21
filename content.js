@@ -12,6 +12,13 @@ let lastRange        = null;
 let lastSelectedText = "";
 let lastContext      = "";
 
+// Tema state — popup'tan storage üzerinden senkronize edilir
+let appTheme = "light";
+chrome.storage.local.get(["theme"], s => { appTheme = s.theme || "light"; });
+chrome.storage.onChanged.addListener(changes => {
+  if (changes.theme) appTheme = changes.theme.newValue || "light";
+});
+
 const isYouTube = location.hostname.includes("youtube.com");
 
 // YouTube subtitle override state
@@ -184,20 +191,24 @@ function injectToggleButton(controls) {
   toggleBtnEl.id = "ytexp-toggle-btn";
   toggleBtnEl.title = "Web Explainer altyazısını aç/kapat";
   toggleBtnEl.style.cssText = `
-    background: rgba(0,0,0,0.5);
-    border: 1px solid rgba(255,255,255,0.25);
-    border-radius: 4px;
-    color: rgba(255,255,255,0.75);
+    background: rgba(0,0,0,0.55);
+    border: 2px solid #3b82f6;
+    border-radius: 8px;
+    color: #fff;
     cursor: pointer;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
     font-family: 'Segoe UI', sans-serif;
-    letter-spacing: 0.08em;
-    padding: 2px 8px;
+    letter-spacing: 0.06em;
+    padding: 0 10px;
     margin: 0 4px;
-    height: 26px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    align-self: center;
+    gap: 5px;
     transition: all 0.15s;
-    vertical-align: middle;
   `;
   updateToggleBtn();
 
@@ -222,17 +233,12 @@ function injectToggleButton(controls) {
 
 function updateToggleBtn() {
   if (!toggleBtnEl) return;
-  if (overlayEnabled) {
-    toggleBtnEl.textContent = "📘 AÇ";
-    toggleBtnEl.style.background = "rgba(124,58,237,0.7)";
-    toggleBtnEl.style.borderColor = "rgba(167,139,250,0.8)";
-    toggleBtnEl.style.color = "#fff";
-  } else {
-    toggleBtnEl.textContent = "📘 TR";
-    toggleBtnEl.style.background = "rgba(0,0,0,0.5)";
-    toggleBtnEl.style.borderColor = "rgba(255,255,255,0.25)";
-    toggleBtnEl.style.color = "rgba(255,255,255,0.75)";
-  }
+  const iconSrc = chrome.runtime.getURL('icons/icon48.png');
+  const iconHtml = `<img src="${iconSrc}" style="width:16px;height:16px;object-fit:contain;flex-shrink:0;">`;
+  toggleBtnEl.innerHTML = `${iconHtml} TR`;
+  toggleBtnEl.style.background = "rgba(0,0,0,0.55)";
+  toggleBtnEl.style.color = "#fff";
+  toggleBtnEl.style.borderColor = overlayEnabled ? "#3b82f6" : "rgba(255,255,255,0.6)";
 }
 
 // ---- Override aç ----
@@ -420,6 +426,22 @@ function getSurroundingContext(sel, selectedText) {
 function showTooltip(word, context, content, state, errorMsg) {
   removeTooltip();
 
+  const T = appTheme === "dark" ? {
+    bg: "#0d0d10", text: "#e8e8f0", text2: "#a0a0b8", muted: "#4a4a60",
+    border: "rgba(255,255,255,0.08)", cardBg: "#16161f", cardBorder: "#3b82f6",
+    ftrBg: "#13131a", ftrBorder: "rgba(255,255,255,0.07)",
+    chipBg: "rgba(59,130,246,0.1)", chipColor: "#3b82f6",
+    copyBtn: "#1e1e2a", copyBtnBorder: "rgba(255,255,255,0.1)", copyBtnColor: "#a0a0b8",
+    cardBodyColor: "#a0a0b8"
+  } : {
+    bg: "#eef2ff", text: "#1e293b", text2: "#475569", muted: "#94a3b8",
+    border: "#e2e8f0", cardBg: "#fff", cardBorder: "#2563eb",
+    ftrBg: "#fff", ftrBorder: "#e2e8f0",
+    chipBg: "#eff6ff", chipColor: "#2563eb",
+    copyBtn: "#fff", copyBtnBorder: "#e2e8f0", copyBtnColor: "#475569",
+    cardBodyColor: "#334155"
+  };
+
   const rect = (typeof lastRange?.getBoundingClientRect === "function")
     ? lastRange.getBoundingClientRect()
     : { bottom: 120, left: 120, top: 100, width: 0 };
@@ -437,35 +459,43 @@ function showTooltip(word, context, content, state, errorMsg) {
     position:absolute; top:${top}px; left:${left}px; width:${W}px;
     z-index:2147483647; font-family:'Segoe UI',system-ui,sans-serif;
     font-size:13px; line-height:1.55;
-    background:#0f0f11; color:#e8e8f0;
-    border:1px solid rgba(255,255,255,0.1); border-radius:12px;
-    box-shadow:0 8px 32px rgba(0,0,0,0.6); overflow:hidden;
+    background:${T.bg}; color:${T.text};
+    border:none; border-radius:14px;
+    box-shadow:0 12px 40px rgba(0,0,0,0.15); overflow:hidden;
     animation:ytexp-fadein 0.18s ease;
   `;
 
+  // Header
   const hdr = document.createElement("div");
-  hdr.style.cssText = "display:flex;align-items:center;justify-content:space-between;padding:10px 14px 8px;border-bottom:1px solid rgba(255,255,255,0.07);background:rgba(167,139,250,0.08);";
-  hdr.innerHTML = `<span style="font-weight:700;font-size:11px;letter-spacing:.06em;color:#a78bfa;text-transform:uppercase;">📘 Web Explainer</span><button id="ytexp-close" style="background:none;border:none;cursor:pointer;color:#666;font-size:18px;line-height:1;padding:0 2px;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#666'">×</button>`;
+  hdr.style.cssText = "display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:#2563eb;";
+  hdr.innerHTML = `
+    <span style="display:flex;align-items:center;gap:6px;font-weight:700;font-size:11px;letter-spacing:.07em;color:#fff;text-transform:uppercase;">
+      <img src="${chrome.runtime.getURL('icons/icon48.png')}" style="width:16px;height:16px;object-fit:contain;filter:brightness(0) invert(1);">
+      Web Explainer
+    </span>
+    <button id="ytexp-close" style="background:rgba(255,255,255,0.18);border:none;cursor:pointer;color:#fff;font-size:16px;width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-family:inherit;">×</button>
+  `;
 
+  // Body
   const body = document.createElement("div");
   body.style.cssText = "padding:12px 14px;";
 
   if (state === "loading") {
     body.innerHTML = `
-      <div style="display:flex;align-items:center;gap:10px;color:#777;padding:8px 0;">
-        <div style="width:15px;height:15px;border:2px solid rgba(167,139,250,0.3);border-top-color:#a78bfa;border-radius:50%;animation:ytexp-spin 0.8s linear infinite;flex-shrink:0;"></div>
+      <div style="display:flex;align-items:center;gap:10px;color:${T.text2};padding:8px 0;">
+        <div style="width:15px;height:15px;border:2px solid #bfdbfe;border-top-color:#2563eb;border-radius:50%;animation:ytexp-spin 0.8s linear infinite;flex-shrink:0;"></div>
         <span>GPT yanıtı bekleniyor…</span>
       </div>
-      <div style="margin-top:6px;font-size:11px;color:#444;border-left:2px solid #333;padding-left:8px;font-style:italic;">"${truncate(word||"", 80)}"</div>
+      <div style="margin-top:6px;font-size:11px;color:${T.muted};border-left:2px solid #93c5fd;padding-left:8px;font-style:italic;">"${truncate(word||"", 80)}"</div>
     `;
   } else if (state === "error") {
-    body.innerHTML = `<div style="color:#f87171;margin-bottom:4px;">⚠️ Hata</div><div style="color:#bbb;">${escHtml(errorMsg||"Bilinmeyen hata.")}</div>`;
+    body.innerHTML = `<div style="color:#dc2626;margin-bottom:4px;font-weight:600;">⚠️ Hata</div><div style="color:${T.text2};">${escHtml(errorMsg||"Bilinmeyen hata.")}</div>`;
   } else if (state === "success") {
-    body.innerHTML = `<div id="ytexp-content" style="max-height:280px;overflow-y:auto;padding-right:4px;">${renderMarkdown(content)}</div>`;
+    body.innerHTML = `<div id="ytexp-content" style="max-height:280px;overflow-y:auto;padding-right:4px;">${renderMarkdown(content, T)}</div>`;
     if (word) {
       const chip = document.createElement("div");
-      chip.style.cssText = "margin-top:8px;padding:5px 8px;background:rgba(255,255,255,0.04);border-radius:6px;font-size:11px;color:#555;border-left:2px solid #a78bfa;";
-      chip.textContent = `"${truncate(word, 60)}"`;
+      chip.style.cssText = `margin-top:8px;padding:5px 12px;background:${T.chipBg};border-radius:20px;font-size:11px;color:${T.chipColor};font-weight:500;display:inline-block;`;
+      chip.textContent = `• "${truncate(word, 60)}"`;
       body.appendChild(chip);
     }
   }
@@ -475,10 +505,10 @@ function showTooltip(word, context, content, state, errorMsg) {
 
   if (state === "success") {
     const ftr = document.createElement("div");
-    ftr.style.cssText = "display:flex;justify-content:flex-end;gap:8px;padding:8px 14px 10px;border-top:1px solid rgba(255,255,255,0.07);";
+    ftr.style.cssText = `display:flex;gap:8px;padding:10px 14px 12px;background:${T.ftrBg};border-top:1px solid ${T.ftrBorder};`;
     ftr.innerHTML = `
-      <button id="ytexp-save" style="background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.3);color:#4ade80;cursor:pointer;border-radius:6px;font-size:11px;padding:4px 10px;">💾 Kelimeyi Kaydet</button>
-      <button id="ytexp-copy" style="background:rgba(167,139,250,0.15);border:1px solid rgba(167,139,250,0.3);color:#a78bfa;cursor:pointer;border-radius:6px;font-size:11px;padding:4px 10px;">📋 Kopyala</button>
+      <button id="ytexp-save" style="flex:1;background:#2563eb;border:none;color:#fff;cursor:pointer;border-radius:8px;font-size:12px;font-weight:600;padding:9px 10px;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:5px;">🔖 Kelimeyi Kaydet</button>
+      <button id="ytexp-copy" style="flex:1;background:${T.copyBtn};border:1.5px solid ${T.copyBtnBorder};color:${T.copyBtnColor};cursor:pointer;border-radius:8px;font-size:12px;font-weight:500;padding:9px 10px;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:5px;">📋 Kopyala</button>
     `;
     tooltipEl.appendChild(ftr);
   }
@@ -490,7 +520,7 @@ function showTooltip(word, context, content, state, errorMsg) {
     document.getElementById("ytexp-copy")?.addEventListener("click", () => {
       navigator.clipboard.writeText(content||"").then(() => {
         const b = document.getElementById("ytexp-copy");
-        if (b) { b.textContent = "✓ Kopyalandı!"; b.style.color = "#4ade80"; }
+        if (b) { b.textContent = "✓ Kopyalandı!"; b.style.color = "#16a34a"; }
       });
     });
     document.getElementById("ytexp-save")?.addEventListener("click", () => {
@@ -499,8 +529,8 @@ function showTooltip(word, context, content, state, errorMsg) {
       chrome.runtime.sendMessage(
         { type: "SAVE_WORD", payload: { word, explanation: content, context: context||"" } },
         (r) => {
-          if (r?.ok) { b.textContent = "✓ Kaydedildi!"; b.style.color = "#86efac"; }
-          else { b.textContent = "Hata!"; b.style.color = "#f87171"; }
+          if (r?.ok) { b.textContent = "✓ Kaydedildi!"; b.style.background = "#16a34a"; }
+          else { b.textContent = "Hata!"; b.style.background = "#dc2626"; }
         }
       );
     });
@@ -525,12 +555,24 @@ function injectStyles() {
     @keyframes ytexp-spin   { to{transform:rotate(360deg)} }
     @keyframes ytexp-pop    { from{opacity:0;transform:scale(0.5)} to{opacity:1;transform:scale(1)} }
 
-    #ytexp-tooltip strong { color:#a78bfa }
+    #ytexp-tooltip strong { color:#3b82f6 }
     #ytexp-tooltip ul     { margin:4px 0; padding-left:1.2em }
-    #ytexp-tooltip li     { margin:2px 0 }
+    #ytexp-tooltip li     { margin:3px 0 }
     #ytexp-tooltip p      { margin:4px 0 }
     #ytexp-content::-webkit-scrollbar       { width:4px }
-    #ytexp-content::-webkit-scrollbar-thumb { background:#333; border-radius:2px }
+    #ytexp-content::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:2px }
+
+    #ytexp-tooltip .ytexp-card {
+      background:#fff; border-radius:10px; padding:12px 14px;
+      margin-bottom:8px; border-left:3px solid #2563eb;
+    }
+    #ytexp-tooltip .ytexp-card:last-child { margin-bottom:0 }
+    #ytexp-tooltip .ytexp-card-hdr {
+      font-weight:700; font-size:11px; letter-spacing:.07em;
+      color:#2563eb; margin-bottom:8px; text-transform:uppercase;
+    }
+    #ytexp-tooltip .ytexp-card-body ul { margin:4px 0; padding-left:1.2em }
+    #ytexp-tooltip .ytexp-card-body li { margin:4px 0 }
 
     .ytexp-caption-line {
       display: inline-block;
@@ -571,15 +613,31 @@ function injectStyles() {
 // ============================================================
 function truncate(s, n) { return s.length > n ? s.slice(0,n)+"…" : s; }
 function escHtml(s) { return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
-function renderMarkdown(text) {
+function renderMarkdown(text, T) {
   if (!text) return "";
-  return text
-    .replace(/\*\*(.*?)\*\*/g,"<strong>$1</strong>")
-    .replace(/^[•\-]\s+(.+)$/gm,"<li>$1</li>")
-    .replace(/(<li>.*<\/li>\n?)+/gs,m=>`<ul style="margin:4px 0;">${m}</ul>`)
-    .replace(/\n{2,}/g,"</p><p>").replace(/\n/g,"<br>")
-    .replace(/^(?!<)/,"<p>").replace(/(?<!>)$/,"</p>")
-    .replace(/<p><\/p>/g,"");
+  const cardStyle  = T ? ` style="background:${T.cardBg};border-left:3px solid ${T.cardBorder};"` : "";
+  const bodyStyle  = T ? ` style="color:${T.cardBodyColor};"` : "";
+  let html = "";
+  text.trim().split(/\n\n+/).forEach(para => {
+    const m = para.match(/^\*\*(.+?)\*\*\n?([\s\S]*)/);
+    if (m) {
+      const heading = escHtml(m[1]).toUpperCase();
+      const body = (m[2] || "").trim()
+        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+        .replace(/^[•\-]\s+(.+)$/gm, "<li>$1</li>")
+        .replace(/(<li>.*<\/li>\n?)+/gs, s => `<ul>${s}</ul>`)
+        .replace(/\n/g, "<br>");
+      html += `<div class="ytexp-card"${cardStyle}><div class="ytexp-card-hdr">${heading}</div>${body ? `<div class="ytexp-card-body"${bodyStyle}>${body}</div>` : ""}</div>`;
+    } else {
+      const body = para
+        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+        .replace(/^[•\-]\s+(.+)$/gm, "<li>$1</li>")
+        .replace(/(<li>.*<\/li>\n?)+/gs, s => `<ul>${s}</ul>`)
+        .replace(/\n/g, "<br>");
+      html += `<div class="ytexp-card"${cardStyle}><div class="ytexp-card-body"${bodyStyle}>${body}</div></div>`;
+    }
+  });
+  return html;
 }
 
 // ============================================================

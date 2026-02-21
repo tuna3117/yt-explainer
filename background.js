@@ -326,7 +326,7 @@ async function sendDailyTelegramWords(isTest = false) {
 
   if (vocab.length === 0) {
     if (isTest) await sendTelegramMessage(botToken, chatId,
-      "📚 *YT Explainer*\n\nHenüz kayıtlı kelimen yok\\!");
+      "🌐 *Web Explainer*\n\nHenüz kayıtlı kelimen yok\\!");
     return 0;
   }
 
@@ -339,7 +339,7 @@ async function sendDailyTelegramWords(isTest = false) {
   const selected = pool.slice(0, Math.min(5, pool.length));
   const today = new Date().toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "long" });
 
-  let msg = `📚 *YT Explainer — Günlük Tekrar*\n_${escapeMarkdown(today)}_\n━━━━━━━━━━━━━━━━━━━━\n\n`;
+  let msg = `🌐 *Web Explainer — Günlük Tekrar*\n_${escapeMarkdown(today)}_\n━━━━━━━━━━━━━━━━━━━━\n\n`;
   selected.forEach((e, i) => {
     msg += `*${i + 1}\\. ${escapeMarkdown(e.word)}*\n`;
     const short = e.explanation.split("\n").filter(l => l.trim()).slice(0, 3).join("\n");
