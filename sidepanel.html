@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Web Explainer Panel</title>
+  <link rel="stylesheet" href="sidepanel.css" />
+</head>
+<body>
+
+  <header>
+    <div class="header-left">
+      <div class="header-icon">
+        <img src="icons/icon48.png" alt="" />
+      </div>
+      <div class="header-text">
+        <div class="logo">Web Explainer</div>
+        <div class="subtitle">Okuma Asistanı</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <button id="theme-toggle" class="theme-btn" title="Tema değiştir">🌙</button>
+    </div>
+  </header>
+
+  <nav class="tab-nav">
+    <button class="tab-btn active" data-tab="explain">💬 Açıklama</button>
+    <button class="tab-btn" data-tab="vocab">📚 Kelimelerim</button>
+  </nav>
+
+  <!-- ===================== AÇIKLAMA ===================== -->
+  <div class="tab-content active" id="tab-explain">
+
+    <div id="panel-empty" class="panel-empty">
+      <div class="panel-empty-icon">📖</div>
+      <div class="panel-empty-title">Henüz açıklama yok</div>
+      <div class="panel-empty-sub">Herhangi bir sayfada metin seç, tooltip'ten <strong>📌 Panelde Aç</strong>'a bas.</div>
+    </div>
+
+    <div id="panel-word-view" style="display:none;">
+      <div class="word-header">
+        <div id="panel-word-title" class="word-title"></div>
+        <div id="panel-word-meta" class="word-meta"></div>
+      </div>
+
+      <div id="panel-word-content" class="word-content"></div>
+
+      <div class="word-actions">
+        <button id="panel-save-btn" class="save-btn">🔖 Kelimeyi Kaydet</button>
+        <p id="panel-save-status" class="save-status"></p>
+      </div>
+
+      <div class="chat-section">
+        <div class="chat-label">Bu konuda soru sor</div>
+        <div id="chat-messages" class="chat-messages"></div>
+        <div class="chat-input-row">
+          <input id="chat-input" class="chat-input" placeholder="Daha fazla sor…" autocomplete="off" />
+          <button id="chat-send" class="chat-send-btn" title="Gönder">↑</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===================== KELİMELERİM ===================== -->
+  <div class="tab-content" id="tab-vocab">
+    <div class="vocab-section">
+
+      <div class="vocab-stats">
+        <div class="stat-card">
+          <div class="stat-icon">📚</div>
+          <div class="stat-number blue" id="stat-total">0</div>
+          <div class="stat-label">Toplam</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">⚡</div>
+          <div class="stat-number orange" id="stat-week">0</div>
+          <div class="stat-label">Bu Hafta</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">🎯</div>
+          <div class="stat-number red" id="stat-today">0</div>
+          <div class="stat-label">Bugün</div>
+        </div>
+      </div>
+
+      <div class="vocab-toolbar">
+        <input type="text" id="vocab-search" placeholder="Kelime ara…" class="search-input" />
+      </div>
+
+      <div id="vocab-list" class="vocab-list"></div>
+
+    </div>
+  </div>
+
+  <!-- ===================== DETAIL MODAL ===================== -->
+
+  <script src="sidepanel.js"></script>
+</body>
+</html>

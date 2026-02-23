@@ -68,6 +68,44 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       .catch((err) => sendResponse({ ok: false, error: err.message }));
     return true;
   }
+
+  // ---- Side Panel: kelimeyi panele gönder + aç ----
+  if (message.type === "OPEN_SIDE_PANEL") {
+    const { word, explanation, context } = message.payload;
+    chrome.storage.local.set({ panel_word: { word, explanation, context, ts: Date.now() } });
+    chrome.sidePanel.open({ tabId: sender.tab.id });
+    sendResponse({ ok: true });
+    return true;
+  }
+
+  // ---- Side Panel: follow-up chat ----
+  if (message.type === "CHAT_MESSAGE") {
+    (async () => {
+      try {
+        const apiKey = await getApiKey();
+        const res = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+          body: JSON.stringify({
+            model: "gpt-4o-mini",
+            max_tokens: 600,
+            temperature: 0.5,
+            messages: message.payload.messages
+          })
+        });
+        if (!res.ok) {
+          const e = await res.json().catch(() => ({}));
+          sendResponse({ ok: false, error: e?.error?.message || `HTTP ${res.status}` });
+          return;
+        }
+        const data = await res.json();
+        sendResponse({ ok: true, data: data.choices[0].message.content.trim() });
+      } catch (err) {
+        sendResponse({ ok: false, error: err.message });
+      }
+    })();
+    return true;
+  }
 });
 
 // ============================================================
@@ -226,9 +264,43 @@ async function getApiKey() {
 }
 
 // ============================================================
+// EXPLAIN CACHE
+// ============================================================
+const CACHE_KEY    = "explain_cache";
+const CACHE_MAX    = 300;
+const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 gün
+
+async function getCached(word, mode) {
+  const { explain_cache: cache = {} } = await chrome.storage.local.get([CACHE_KEY]);
+  const entry = cache[`${word.toLowerCase().trim()}|${mode}`];
+  if (!entry || Date.now() - entry.ts > CACHE_TTL_MS) return null;
+  return entry.result;
+}
+
+async function setCached(word, mode, result) {
+  const { explain_cache: cache = {} } = await chrome.storage.local.get([CACHE_KEY]);
+  cache[`${word.toLowerCase().trim()}|${mode}`] = { result, ts: Date.now() };
+
+  // Max 300 entry — en eski girişleri sil
+  const entries = Object.entries(cache);
+  if (entries.length > CACHE_MAX) {
+    entries.sort((a, b) => a[1].ts - b[1].ts);
+    entries.slice(0, entries.length - CACHE_MAX).forEach(([k]) => delete cache[k]);
+  }
+
+  await chrome.storage.local.set({ [CACHE_KEY]: cache });
+}
+
+// ============================================================
 // OPENAI — Single explanation
 // ============================================================
 async function handleExplain({ selectedText, context, mode }) {
+  const effectiveMode = mode || "explain";
+
+  // Cache'de varsa direkt dön
+  const cached = await getCached(selectedText, effectiveMode);
+  if (cached) return cached;
+
   const apiKey = await getApiKey();
 
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -242,8 +314,8 @@ async function handleExplain({ selectedText, context, mode }) {
       max_tokens: 400,
       temperature: 0.4,
       messages: [
-        { role: "system", content: getSystemPrompt(mode || "explain") },
-        { role: "user", content: buildPrompt(selectedText, context, mode || "explain") }
+        { role: "system", content: getSystemPrompt(effectiveMode) },
+        { role: "user", content: buildPrompt(selectedText, context, effectiveMode) }
       ]
     })
   });
@@ -254,7 +326,12 @@ async function handleExplain({ selectedText, context, mode }) {
   }
 
   const data = await response.json();
-  return data.choices[0].message.content.trim();
+  const result = data.choices[0].message.content.trim();
+
+  // Cache'e kaydet
+  await setCached(selectedText, effectiveMode, result);
+
+  return result;
 }
 
 function getSystemPrompt(mode) {
